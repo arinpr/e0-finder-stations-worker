@@ -355,10 +355,14 @@ function sanitizeOsmPlace(value: unknown): UnknownMap | null {
   const id = typeof element.id === "number" ? Math.trunc(element.id) : null;
   if (!type || id === null || latitude === null || longitude === null) return null;
 
-  const name = firstText(tags.name, tags.brand, tags.operator) || "Fuel station";
+  const name = [tags.name, tags["name:en"], tags.brand, tags.operator]
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .find((value) => !/^(pump|pumps|petrolpump|petrolpumps|fuelstation|gasstation|petrolstation)$/i.test(value.replace(/[^a-z0-9]/gi, "")))
+    ?.trim() || "Unnamed fuel station";
   return {
     placeId: `osm:${type}:${id}`,
     name,
+    brand: firstText(tags.brand, tags.operator),
     address: osmAddress(tags),
     latitude,
     longitude,
@@ -476,7 +480,7 @@ async function cachedJson(
   producer: () => Promise<UnknownMap>, ctx: ExecutionContext,
 ): Promise<Response> {
   const keyUrl = new URL(url);
-  keyUrl.pathname = "/__cache/v2" + url.pathname;
+  keyUrl.pathname = "/__cache/v3" + url.pathname;
   keyUrl.search = "";
   keyUrl.searchParams.set("query", stableCacheKey(data));
   const key = keyUrl.toString();

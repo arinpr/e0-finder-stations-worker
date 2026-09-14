@@ -63,7 +63,7 @@ test('Overpass requests coordinates and hot queries skip upstream', async () => 
   const second = await request('searchStations', near);
   assert.equal(second.headers.get('X-E0-Cache'), 'HIT-MEM');
   assert.equal(calls, 1);
-  assert.ok(writes[0].startsWith('https://worker.example/__cache/v2/'));
+  assert.ok(writes[0].startsWith('https://worker.example/__cache/v3/'));
 });
 
 test('different radii, limits, and nearby coordinates have distinct cache keys', async () => {
@@ -185,4 +185,15 @@ test('all upstream attempts have bounded abort timers', async () => {
   });
   assert.equal((await request('searchStations', near)).status, 503);
   assert.deepEqual(budgets, [3000, 3000, 2000]);
+});
+
+test('generic pump labels use the mapped brand, while proper names are retained', async () => {
+  globalThis.fetch = async () => json({elements: [
+    {...osm(101), tags: {amenity: 'fuel', name: 'Petrol Pump', brand: 'IndianOil'}},
+    {...osm(102), tags: {amenity: 'fuel', name: 'Riverside Service Station', brand: 'Shell'}},
+  ]});
+  const response = await request('searchStations', near);
+  const stations = (await response.json()).stations;
+  assert.equal(stations[0].name, 'IndianOil');
+  assert.equal(stations[1].name, 'Riverside Service Station');
 });
